@@ -2482,3 +2482,89 @@ asyncTest( "Sanitized HTML doesn't get unsanitized (CVE-2020-11022)", 24, functi
 		start();
 	}, 1000 );
 });
+
+asyncTest( "Sanitized HTML containing <option> doesn't get unsanitized (CVE-2020-11023)", 19, function() {
+	var i, container,
+		calls = [],
+
+		// Harmless when parsed outside of a select element (which is how an HTML
+		// sanitizer sees them), but the images escape the raw text elements when
+		// the markup gets parsed inside of a <select> wrapper.
+		payloads = [
+			"<option><style></option></select><img src=url404 onerror=xss(0)></style>",
+			"<optgroup><style></optgroup></select><img src=url404 onerror=xss(1)></style>",
+			"<option><title></option></select><img src=url404 onerror=xss(2)></title>",
+			"<option><xmp></option></select><img src=url404 onerror=xss(3)></xmp>",
+			"<option><iframe></option></select><img src=url404 onerror=xss(4)></iframe>",
+			"<option><noframes></option></select><img src=url404 onerror=xss(5)></noframes>"
+		];
+
+	Globals.register("xss");
+	window.xss = function( index ) {
+		calls.push( index );
+	};
+
+	container = jQuery("<div></div>").appendTo("#qunit-fixture");
+
+	for ( i = 0; i < payloads.length; i++ ) {
+		strictEqual(
+			jQuery("<div></div>").appendTo( container ).html( payloads[ i ] ).find("[onerror]").length,
+			0, "html() doesn't create event handlers, input: " + payloads[ i ]
+		);
+		strictEqual(
+			jQuery("<div></div>").appendTo( container ).append( payloads[ i ] ).find("[onerror]").length,
+			0, "append() doesn't create event handlers, input: " + payloads[ i ]
+		);
+		strictEqual(
+			jQuery("<div></div>").append( jQuery.parseHTML( payloads[ i ] ) ).find("[onerror]").length,
+			0, "jQuery.parseHTML() doesn't create event handlers, input: " + payloads[ i ]
+		);
+	}
+
+	setTimeout(function() {
+		deepEqual( calls, [], "Insecure code wasn't executed" );
+		start();
+	}, 1000 );
+});
+
+test( "HTML starting with <option> isn't parsed inside of a <select> wrapper (CVE-2020-11023)", function() {
+	var $select,
+		div = document.createElement("div"),
+		html = "<option>a</option></select><b>b</b>",
+		nodeNames = function( nodes ) {
+			return jQuery.map( nodes, function( node ) {
+				return node.nodeName.toLowerCase();
+			}).join(",");
+		};
+
+	// Support: IE<=9
+	// <option> elements still need the <select> wrapper there
+	div.innerHTML = "<option></option>";
+	if ( !div.lastChild ) {
+		expect( 1 );
+		ok( true, "The <select> wrapper is required in this browser" );
+		return;
+	}
+
+	expect( 9 );
+
+	equal( nodeNames( jQuery("<div></div>").html( html ).children() ), "option,b",
+		"html() doesn't let the markup break out of a <select> wrapper" );
+	equal( nodeNames( jQuery("<div></div>").append( html ).children() ), "option,b",
+		"append() doesn't let the markup break out of a <select> wrapper" );
+	equal( nodeNames( jQuery.parseHTML( html ) ), "option,b",
+		"jQuery.parseHTML() doesn't let the markup break out of a <select> wrapper" );
+
+	$select = jQuery("<select></select>")
+		.html("<option value='a'>A</option><option value='b' selected='selected'>B</option>");
+	equal( $select.children("option").length, 2, "html() inserts options into a select" );
+	equal( $select.val(), "b", "Inserted options keep their attributes" );
+
+	$select = jQuery("<select></select>")
+		.append("<optgroup label='g'><option value='c'>C</option></optgroup>");
+	equal( $select.find("optgroup > option").length, 1, "append() inserts optgroups into a select" );
+	equal( $select.children("optgroup").attr("label"), "g", "Inserted optgroups keep their attributes" );
+
+	equal( nodeNames( jQuery("<option value='d'>D</option>") ), "option", "jQuery() creates options" );
+	equal( jQuery("<option value='d'>D</option>").val(), "d", "Created options keep their attributes" );
+});
