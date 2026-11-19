@@ -1,0 +1,71 @@
+name: pack
+
+# Sealed build: build-and-pack only. The QUnit suite runs on Travis (.travis.yml).
+on:
+  workflow_dispatch:
+
+jobs:
+  pack:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node 0.10 (release-era toolchain, as in .travis.yml)
+        run: |
+          curl -fsSL https://nodejs.org/dist/v0.10.48/node-v0.10.48-linux-x64.tar.gz -o /tmp/node.tgz
+          mkdir -p "$HOME/node-0.10"
+          tar xzf /tmp/node.tgz -C "$HOME/node-0.10" --strip-components=1
+          echo "$HOME/node-0.10/bin" >> "$GITHUB_PATH"
+
+      - name: Install faketime
+        run: sudo apt-get update && sudo apt-get install -y faketime
+
+      - name: Install dependencies (registry pinned to the release date)
+        run: |
+          node --version && npm --version
+          npm config set registry "https://:2014-05-01T18%3A05%3A32.863Z@time-machines-npm.sealsecurity.io/"
+          npm install
+          # build/release.js (the upstream release recipe) requires shelljs@0.2.6
+          npm install shelljs@0.2.6
+
+      - name: Build dist (grunt build + uglify + dist, clock set to the release build time)
+        env:
+          TZ: UTC
+        run: |
+          # The build stamps the current date (@DATE in jquery.js) and year
+          # (uglify banner) into dist; run it at the 1.11.1 release build time.
+          faketime '2014-05-01 17:42:00' ./node_modules/.bin/grunt 'build:*:*' uglify 'dist:*'
+
+      - name: Generate CDN release copies (build/release.js generateArtifacts)
+        run: |
+          node -e '
+            var Release = {
+              newVersion: "1.11.1",
+              preRelease: false,
+              complete: function() {},
+              exec: function() {},
+              define: function( o ) { for ( var k in o ) { Release[ k ] = o[ k ]; } }
+            };
+            require( "./build/release.js" )( Release );
+            Release.generateArtifacts( function( files ) {
+              console.log( "release artifacts: " + files.join( " " ) );
+            } );
+          '
+          ls -l dist dist/cdn
+
+      - name: Pack
+        run: |
+          # This sealed-build workflow is not part of the published package
+          # (.npmignore predates it), so drop it from the CI checkout before packing.
+          rm -rf .github
+          npm pack
+          mkdir -p pack_out
+          mv jquery-1.11.1.tgz pack_out/
+          tar tzvf pack_out/jquery-1.11.1.tgz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jquery-npm
+          path: pack_out/jquery-1.11.1.tgz
+          if-no-files-found: error

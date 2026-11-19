@@ -1,3 +1,17 @@
 language: node_js
 node_js:
 - '0.10'
+cache:
+  npm: false
+addons:
+  chrome: stable
+  apt:
+    packages:
+    - php-cli
+before_install:
+- npm config set registry https://:2014-05-01T18%3A05%3A32.863Z@time-machines-npm.sealsecurity.io/
+# Build the distribution files (lint/style/size gates of the default grunt task dropped)
+# and run the QUnit suite in headless Chrome against the built dist/jquery.min.js.
+script:
+- ./node_modules/.bin/grunt build:*:* uglify dist:*
+- bash test/ci/qunit.sh

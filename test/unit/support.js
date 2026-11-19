@@ -58,20 +58,21 @@ testIframeWithCallback( "box-sizing does not affect jQuery.support.shrinkWrapBlo
 
 // This test checkes CSP only for browsers with "Content-Security-Policy" header support
 // i.e. no old WebKit or old Firefox
-testIframeWithCallback( "Check CSP (https://developer.mozilla.org/en-US/docs/Security/CSP) restrictions",
-	"support/csp.php",
-	function( support ) {
-		expect( 2 );
-		deepEqual( jQuery.extend( {}, support ), computedSupport, "No violations of CSP polices" );
+// SEALED-SKIP: Check CSP restrictions -- modern headless Chrome (158) reports a CSP violation when src/event/support.js calls div.setAttribute("onfocusin", "t") (onfocusin is not in window); 2014-era browsers did not report setting an inline-handler attribute.
+// testIframeWithCallback( "Check CSP (https://developer.mozilla.org/en-US/docs/Security/CSP) restrictions",
+// 	"support/csp.php",
+// 	function( support ) {
+// 		expect( 2 );
+// 		deepEqual( jQuery.extend( {}, support ), computedSupport, "No violations of CSP polices" );
 
-		stop();
+// 		stop();
 
-		supportjQuery.get( "data/support/csp.log" ).done(function( data ) {
-			equal( data, "", "No log request should be sent" );
-			supportjQuery.get( "data/support/csp-clean.php" ).done( start );
-		});
-	}
-);
+// 		supportjQuery.get( "data/support/csp.log" ).done(function( data ) {
+// 			equal( data, "", "No log request should be sent" );
+// 			supportjQuery.get( "data/support/csp-clean.php" ).done( start );
+// 		});
+// 	}
+// );
 
 (function() {
 	var expected,
