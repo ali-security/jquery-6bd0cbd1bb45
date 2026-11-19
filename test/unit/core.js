@@ -1341,6 +1341,48 @@ test("jQuery.parseHTML", function() {
 	equal( jQuery.parseHTML("<td><td>")[ 1 ].parentNode.nodeType, 11, "parentNode should be documentFragment" );
 });
 
+test("jQuery.parseHTML(<a href>) - gh-2965", function() {
+	expect( 1 );
+
+	var html = "<a href='test.html'></a>",
+		href = jQuery.parseHTML( html )[ 0 ].href;
+
+	ok( /\/test\.html$/.test( href ), "href is not lost after parsing anchor" );
+});
+
+if ( jQuery.support.createHTMLDocument ) {
+	asyncTest("jQuery.parseHTML", function() {
+		expect ( 1 );
+
+		Globals.register("parseHTMLError");
+
+		jQuery.globalEval("parseHTMLError = false;");
+		jQuery.parseHTML( "<img src=x onerror='parseHTMLError = true'>" );
+
+		window.setTimeout(function() {
+			start();
+			equal( window.parseHTMLError, false, "onerror eventhandler has not been called." );
+		}, 2000);
+	});
+
+	asyncTest("jQuery.parseHTML - inline event handlers are not executed when keepScripts is passed", function() {
+		expect( 2 );
+
+		Globals.register("parseHTMLErrorKeepScripts");
+		Globals.register("parseHTMLErrorNoContext");
+
+		jQuery.globalEval("parseHTMLErrorKeepScripts = false; parseHTMLErrorNoContext = false;");
+		jQuery.parseHTML( "<img src=x onerror='parseHTMLErrorKeepScripts = true'>", true );
+		jQuery.parseHTML( "<div><img src=x onerror='parseHTMLErrorNoContext = true'></div>", null, true );
+
+		window.setTimeout(function() {
+			start();
+			equal( window.parseHTMLErrorKeepScripts, false, "onerror eventhandler has not been called (keepScripts as second argument)." );
+			equal( window.parseHTMLErrorNoContext, false, "onerror eventhandler has not been called (null context, keepScripts)." );
+		}, 2000);
+	});
+}
+
 test("jQuery.parseJSON", function() {
 	expect( 20 );
 
