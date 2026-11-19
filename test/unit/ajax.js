@@ -60,6 +60,96 @@ module( "ajax", {
 		}
 	});
 
+	ajaxTest( "jQuery.ajax() - do not execute js (crossOrigin)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php?header=ecma"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		fail: function() {
+			if ( jQuery.support.cors === false ) {
+				ok( true, "fail" );
+			}
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - do not execute js (crossOrigin, text/javascript)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php?header=script"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		fail: function() {
+			if ( jQuery.support.cors === false ) {
+				ok( true, "fail" );
+			}
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - execute js for crossOrigin when dataType option is provided", 3, {
+		create: function( options ) {
+			options.crossDomain = true;
+			options.dataType = "script";
+			return jQuery.ajax( url("data/script.php?header=ecma"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - do not execute js (crossOrigin)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		fail: function() {
+			if ( jQuery.support.cors === false ) {
+				ok( true, "fail" );
+			}
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	test( "jQuery.ajax() - script content-type auto-detection disabled for cross-domain requests (gh-2432)", 5, function() {
+		jQuery.ajax({
+			url: "http://example.invalid/data/script.php?header=ecma",
+			global: false,
+			beforeSend: function( _, s ) {
+				ok( s.crossDomain, "cross-domain request detected from the url" );
+				strictEqual( s.contents.script, false, "script content-type auto-detection disabled" );
+				return false;
+			}
+		});
+		jQuery.ajax({
+			url: url("data/script.php?header=ecma"),
+			global: false,
+			beforeSend: function( _, s ) {
+				ok( !s.crossDomain, "same-domain request detected from the url" );
+				ok( s.contents.script, "script content-type auto-detection kept for same-domain requests" );
+				return false;
+			}
+		});
+		ok( jQuery.ajaxSettings.contents.script, "global ajax settings left untouched" );
+	});
+
 	ajaxTest( "jQuery.ajax() - success callbacks (late binding)", 8, {
 		setup: addGlobalEvents("ajaxStart ajaxStop ajaxSend ajaxComplete ajaxSuccess"),
 		url: url("data/name.html"),
